@@ -61,4 +61,43 @@ HOST_ENTRIES=$(multipass list --format=csv | grep -E "$(echo "${MASTER_SERVER[@]
 for server in $(echo "${MASTER_SERVER[@]} ${SLAVE_SERVER[@]}" | sed 's/ /\n/g' | sort -u) 
 do
     $(multipass exec ${server} -- sudo bash -c "echo \"${HOST_ENTRIES}\" >> /etc/hosts")
+    for host in $(echo "${MASTER_SERVER[@]} ${SLAVE_SERVER[@]}" | sed 's/ /\n/g' | sort -u) 
+    do
+        $(multipass exec ${server} -- sudo bash -c "ssh-keyscan ${host} >> /root/.ssh/known_hosts")
+        $(multipass exec ${server} -- sudo bash -c "ssh-keyscan ${host}.domain.com >> /root/.ssh/known_hosts")
+        ip=$(multipass list --format=csv | grep -E "${host}" | awk -F "," '{print $3}')
+        $(multipass exec ${server} -- sudo bash -c "ssh-keyscan ${ip} >> /root/.ssh/known_hosts")
+    done 
 done 
+
+echo "Step 1 — Installing Ansible"
+for server in $(echo "${MASTER_SERVER[@]} ${SLAVE_SERVER[@]}" | sed 's/ /\n/g' | sort -u) 
+do
+    multipass exec ${server} -- sudo bash -c "apt update 2>/dev/null | apt upgrade -y 2>/dev/null"
+done
+for server in $(echo "${MASTER_SERVER[@]}" | sed 's/ /\n/g' | sort -u) 
+do
+    multipass exec ${server} -- sudo bash -c "apt-add-repository -y ppa:ansible/ansible"
+    multipass exec ${server} -- sudo bash -c "apt update 2>/dev/null"
+    multipass exec ${server} -- sudo bash -c "apt install ansible -y 2>/dev/null"
+done
+MASTER_HOST_ENTRIES=$(multipass list --format=csv | grep -E "$(echo "${MASTER_SERVER[@]}" | sed 's/ /\n/g' | sort -u | awk -vORS='|' '{ print $1 }' | sed 's/|$/\n/' )" | awk -F "," '{print $1" ansible_host="$3" ansible_user=root"}')
+SLAVE_HOST_ENTRIES=$(multipass list --format=csv | grep -E "$(echo "${SLAVE_SERVER[@]}" | sed 's/ /\n/g' | sort -u | awk -vORS='|' '{ print $1 }' | sed 's/|$/\n/' )" | awk -F "," '{print $1" ansible_host="$3" ansible_user=root"}')
+for server in $(echo "${MASTER_SERVER[@]}" | sed 's/ /\n/g' | sort -u) 
+do
+
+    multipass exec ${server} -- sudo bash -c "mkdir -p /etc/ansible"
+    multipass exec ${server} -- sudo bash -c "cat /dev/null > /etc/ansible/hosts"
+    multipass exec ${server} -- sudo bash -c "cat /dev/null > /etc/ansible/hosts"
+    multipass exec ${server} -- sudo bash -c "echo -e \"[masters]\n${MASTER_HOST_ENTRIES}\" >> /etc/ansible/hosts"
+    multipass exec ${server} -- sudo bash -c "echo -e \"[servers]\n${SLAVE_HOST_ENTRIES}\" >> /etc/ansible/hosts"
+    multipass exec ${server} -- sudo bash -c "echo -e \"\n[all:vars]\nansible_python_interpreter=/usr/bin/python3\" >> /etc/ansible/hosts"
+done 
+for masternode in ${MASTER_SERVER}
+do
+    for slavenode in ${SLAVE_SERVER}
+    do
+        echo "setting up ssh to ${masternode} for ${slavenode}"
+        $(multipass exec ${masternode} -- sudo bash -c "ssh root@${slavenode} -y ls -l")
+    done
+done
