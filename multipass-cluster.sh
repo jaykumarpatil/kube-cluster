@@ -242,7 +242,7 @@ do
     multipass exec ${controlplane} -- sudo bash -c "cat /dev/null > /etc/ansible/hosts"
     $(multipass exec ${controlplane} -- sudo bash -c "echo -e \"\n[control_plane]\n${CONTROL_PLANE_HOST_ENTRIES}\" >> /etc/ansible/hosts")
     $(multipass exec ${controlplane} -- sudo bash -c "echo -e \"\n[masters]\n${MASTER_HOST_ENTRIES}\" >> /etc/ansible/hosts")
-    $(multipass exec ${controlplane} -- sudo bash -c "echo -e \"\n[servers]\n${WORKER_HOST_ENTRIES}\" >> /etc/ansible/hosts")
+    $(multipass exec ${controlplane} -- sudo bash -c "echo -e \"\n[workers]\n${WORKER_HOST_ENTRIES}\" >> /etc/ansible/hosts")
     multipass exec ${controlplane} -- sudo bash -c "echo -e \"\n[all:vars]\nansible_python_interpreter=/usr/bin/python3\" >> /etc/ansible/hosts"
 done 
 for controlplane in $(echo "${CONTROL_PLANE_NODES[@]}" | sed 's/ /\n/g' | sort -u) 
