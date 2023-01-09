@@ -1,5 +1,5 @@
 #!/bin/bash
-set -x
+# set -x
 ## Colors list
 
 # Reset
@@ -216,7 +216,7 @@ HOST_ENTRIES=$(multipass list --format=csv | grep -E "$(echo "${CLUSTER_NODES[@]
 for server in ${CLUSTER_NODES[@]}
 do
     $(multipass exec ${server} -- sudo bash -c "echo \"${HOST_ENTRIES}\" >> /etc/hosts")
-    for host in ${CLUSTER_NODES[@]}}
+    for host in ${CLUSTER_NODES[@]}
     do
         $(multipass exec ${server} -- sudo bash -c "ssh-keyscan ${host} >> /root/.ssh/known_hosts")
         $(multipass exec ${server} -- sudo bash -c "ssh-keyscan ${host}.domain.com >> /root/.ssh/known_hosts")
@@ -245,7 +245,7 @@ do
     $(multipass exec ${controlplane} -- sudo bash -c "echo -e \"\n[servers]\n${WORKER_HOST_ENTRIES}\" >> /etc/ansible/hosts")
     multipass exec ${controlplane} -- sudo bash -c "echo -e \"\n[all:vars]\nansible_python_interpreter=/usr/bin/python3\" >> /etc/ansible/hosts"
 done 
-for controlplane in ${CONTROL_PLANE_NODES[@]}
+for controlplane in $(echo "${CONTROL_PLANE_NODES[@]}" | sed 's/ /\n/g' | sort -u) 
 do
     for node in $(${MASTER_NODES[@]} ${WORKER_NODES[@]})
     do
@@ -253,3 +253,5 @@ do
         $(multipass exec ${controlplane} -- sudo bash -c "ssh root@${node} -y ls -l")
     done
 done
+multipass exec k8s-control-plane -- sudo bash -c "ansible-inventory --list -y"
+multipass exec k8s-control-plane -- sudo bash -c "ansible all -m ping -u root"
